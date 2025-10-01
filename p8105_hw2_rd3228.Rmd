@@ -1,0 +1,470 @@
+---
+title: "p8105_hw2_rd3228"
+author: "Renxuan Deng"
+date: "2025-09-27"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+## Problem 1: FiveThirtyEight Data Cleaning and Merging
+
+### Step 1: Clean pols-month.csv data
+
+```{r clean_pols}
+# Read pols-month.csv data
+pols <- read_csv("D:/P8105/hw2/fivethirtyeight_datasets/pols-month.csv")
+
+# Clean the data
+pols_clean <- pols |>
+  # Separate date variable
+  separate(mon, into = c("year", "month", "day"), sep = "-") |>
+  mutate(
+    year = as.integer(year),
+    month = as.integer(month),
+    day = as.integer(day),
+    # Convert month number to month name
+    month = month.name[month],
+    # Create president variable
+    president = case_when(
+      prez_gop == 1 ~ "gop",
+      prez_dem == 1 ~ "dem",
+      TRUE ~ NA_character_
+    )
+  ) |>
+  # Remove unnecessary variables
+  select(-prez_dem, -prez_gop, -day) |>
+  # Reorder columns
+  select(year, month, president, everything())
+
+# View cleaned data
+head(pols_clean)
+```
+
+### Step 2: Clean snp.csv data
+
+```{r clean_snp}
+# Read snp.csv data
+snp <- read_csv("D:/P8105/hw2/fivethirtyeight_datasets/snp.csv")
+
+# Clean the data
+snp_clean <- snp |>
+  # Convert date format
+  mutate(date = mdy(date)) |>
+  # Extract year and month
+  mutate(
+    year = year(date),
+    month = month.name[month(date)]
+  ) |>
+  # Remove original date column and reorder
+  select(year, month, close) |>
+  # Arrange by year and month
+  arrange(year, month)
+
+# View cleaned data
+head(snp_clean)
+```
+
+### Step 3: Clean unemployment.csv data
+
+```{r clean_unemployment}
+# Read unemployment.csv data
+unemployment <- read_csv("D:/P8105/hw2/fivethirtyeight_datasets/unemployment.csv")
+
+# Clean data - convert from wide to long format
+unemployment_clean <- unemployment |>
+  pivot_longer(
+    cols = Jan:Dec,
+    names_to = "month",
+    values_to = "unemployment_rate"
+  ) |>
+  # Convert month abbreviations to full month names
+  mutate(
+    month = case_when(
+      month == "Jan" ~ "January",
+      month == "Feb" ~ "February", 
+      month == "Mar" ~ "March",
+      month == "Apr" ~ "April",
+      month == "May" ~ "May",
+      month == "Jun" ~ "June",
+      month == "Jul" ~ "July",
+      month == "Aug" ~ "August",
+      month == "Sep" ~ "September",
+      month == "Oct" ~ "October",
+      month == "Nov" ~ "November",
+      month == "Dec" ~ "December"
+    )
+  ) |>
+  rename(year = Year)
+
+# View cleaned data
+head(unemployment_clean)
+```
+
+### Step 4: Merge datasets
+
+```{r merge_datasets}
+# First merge pols and snp data
+merged_data <- pols_clean |>
+  left_join(snp_clean, by = c("year", "month"))
+
+# Then merge unemployment data
+final_data <- merged_data |>
+  left_join(unemployment_clean, by = c("year", "month"))
+
+# View final merged data
+head(final_data)
+```
+
+### Data Description
+
+```{r data_description}
+# Data dimensions
+dim_final <- dim(final_data)
+year_range <- range(final_data$year, na.rm = TRUE)
+key_variables <- names(final_data)
+
+cat("Final dataset dimensions:", dim_final[1], "rows ×", dim_final[2], "columns\n")
+cat("Year range:", year_range[1], "to", year_range[2], "\n")
+cat("Key variables:", paste(key_variables, collapse = ", "), "\n")
+```
+
+**Dataset Description:**
+
+- **pols-month.csv**: Contains US political data, recording monthly presidential party affiliation (Democratic or Republican) and the number of party seats in various government branches from 1947 to 2015.
+
+- **snp.csv**: Contains monthly closing prices of the S&P 500 index, spanning from 1950 to 2015.
+
+- **unemployment.csv**: Contains US monthly unemployment rate data from 1948 to 2015.
+
+**Merged Dataset Characteristics:**
+- Dimensions: `r dim_final[1]` rows × `r dim_final[2]` columns
+- Year range: `r year_range[1]` to `r year_range[2]`
+- Key variables include year, month, president party, party seats in government branches, S&P 500 closing price, and unemployment rate
+
+## Problem 2: Mr. Trash Wheel Dataset
+
+### Step 1: Read and clean Mr. Trash Wheel data
+
+```{r mr_trash_wheel}
+# Read Mr. Trash Wheel sheet
+mr_trash <- read_excel("D:/P8105/hw2/202409 Trash Wheel Collection Data.xlsx", 
+                      sheet = "Mr. Trash Wheel") |>  
+  # Clean column names
+  janitor::clean_names() |>
+  # Remove rows without dumpster-specific data
+  filter(!is.na(dumpster)) |>
+  # Ensure year is numeric
+  mutate(year = as.numeric(year)) |>
+  # Round sports balls to nearest integer and convert to integer
+  mutate(sports_balls = as.integer(round(sports_balls))) |>
+  # Add identifier variable
+  mutate(wheel_type = "Mr. Trash Wheel")
+
+# View the cleaned data
+head(mr_trash)
+```
+
+### Step 2: Read and clean Professor Trash Wheel data
+
+```{r professor_trash_wheel}
+# Read Professor Trash Wheel sheet
+professor_trash <- read_excel("D:/P8105/hw2/202409 Trash Wheel Collection Data.xlsx", 
+                            sheet = "Professor Trash Wheel") |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(year = as.numeric(year)) |>
+  mutate(wheel_type = "Professor Trash Wheel")
+
+head(professor_trash)
+```
+
+### Step 3: Read and clean Gwynnda Trash Wheel data
+
+```{r gwynnda_trash_wheel}
+# Read Gwynnda Trash Wheel sheet
+gwynnda_trash <- read_excel("D:/P8105/hw2/202409 Trash Wheel Collection Data.xlsx", 
+                           sheet = "Gwynnda Trash Wheel") |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(year = as.numeric(year)) |>
+  mutate(wheel_type = "Gwynnda Trash Wheel")
+
+head(gwynnda_trash)
+```
+
+### Step 4: Combine all datasets
+
+```{r combine_trash}
+# Combine all trash wheel datasets
+combined_trash <- bind_rows(mr_trash, professor_trash, gwynnda_trash) |>
+  # Arrange by date for better organization
+  arrange(year)
+
+# View combined data
+head(combined_trash)
+
+# Check the structure
+glimpse(combined_trash)
+```
+
+### Step 5: Calculate required statistics
+
+```{r trash_stats}
+# Total observations
+total_obs <- nrow(combined_trash)
+
+# Total weight collected by Professor Trash Wheel
+professor_total_weight <- combined_trash |>
+  filter(wheel_type == "Professor Trash Wheel") |>
+  summarize(total_weight = sum(weight_tons, na.rm = TRUE)) |>
+  pull(total_weight)
+
+# Cigarette butts collected by Gwynnda in June 2022
+gwynnda_june_2022 <- combined_trash |>
+  filter(wheel_type == "Gwynnda Trash Wheel",
+         year == 2022,
+         month == "June") |>
+  summarize(total_cigarettes = sum(cigarette_butts, na.rm = TRUE)) |>
+  pull(total_cigarettes)
+
+# Key variables examples
+key_vars <- names(combined_trash)
+sample_weights <- combined_trash |>
+  select(weight_tons) |>
+  head(5)
+```
+
+### Data Description Paragraph
+
+The combined Trash Wheel dataset contains `r total_obs` observations, representing trash collection data from three different trash interception devices: Mr. Trash Wheel, Professor Trash Wheel, and Gwynnda Trash Wheel. Key variables include dumpster identification numbers, collection dates, weight in tons, volume in cubic yards, and counts of specific trash items such as plastic bottles (`r combined_trash$plastic_bottles[1]`), polystyrene containers, cigarette butts, glass bottles, plastic bags, and sports balls (e.g., `r combined_trash$sports_balls[1]`). 
+
+Professor Trash Wheel collected a total of `r professor_total_weight` tons of trash. In June 2022, Gwynnda collected `r gwynnda_june_2022` cigarette butts.
+
+## Problem 3: Zillow Rental Price Analysis
+
+### Step 1: Clean and organize ZIP code data
+
+```{r clean_zip_codes}
+# Read ZIP code data
+zip_codes <- read_csv("D:/P8105/hw2/zillow_data/Zip Codes.csv") |>
+  # Clean column names
+  janitor::clean_names() |>
+  # Select relevant columns and rename for clarity
+  select(
+    borough = county,
+    zip_code = zip_code,
+    neighborhood = neighborhood
+  ) |>
+  # Remove rows with missing ZIP codes
+  filter(!is.na(zip_code)) |>
+  # Convert ZIP code to character to ensure consistent type
+  mutate(zip_code = as.character(zip_code)) |>
+  # Remove duplicates
+  distinct(zip_code, .keep_all = TRUE)
+
+# View cleaned ZIP code data
+head(zip_codes)
+
+# Summary of ZIP codes by borough
+zip_summary <- zip_codes |>
+  count(borough, name = "zip_count")
+zip_summary
+```
+
+### Step 2: Clean and organize Zillow rental price data
+
+```{r clean_rental_data}
+# Read and clean the rental price data
+rental_data <- read_csv("D:/P8105/hw2/zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv") |>
+  # Clean column names
+  janitor::clean_names() |>
+  # Select and rename relevant columns
+  select(
+    region_id = region_id,
+    size_rank = size_rank,
+    zip_code = region_name,
+    region_type = region_type,
+    state_name = state_name,
+    state = state,
+    neighborhood = city,
+    metro = metro,
+    borough = county_name,
+    everything()
+  ) |>
+  # Convert ZIP code to character for consistency
+  mutate(zip_code = as.character(zip_code))
+```
+
+### Step 3: Reshape datasets and create final tidy dataset
+
+```{r reshape_datasets}
+# Reshape from wide to long format for time series analysis
+tidy_rental <- rental_data |>
+  # Pivot all date columns to long format
+  pivot_longer(
+    cols = x2015_01_31:x2024_08_31,
+    names_to = "date",
+    values_to = "rental_price"
+  ) |>
+  # Clean and parse date column
+  mutate(
+    date = str_remove(date, "^x") |>
+      str_replace_all("_", "-") |>
+      as.Date(),
+    year = year(date),
+    month = month(date)
+  ) |>
+  # Arrange by ZIP code and date
+  arrange(zip_code, date) |>
+  # Remove rows with missing rental prices
+  filter(!is.na(rental_price))
+
+# Summary of tidy dataset
+tidy_summary <- tidy_rental |>
+  summarise(
+    total_observations = n(),
+    unique_zip_codes = n_distinct(zip_code),
+    unique_neighborhoods = n_distinct(neighborhood),
+    date_range_start = min(date),
+    date_range_end = max(date),
+    .by = borough
+  )
+# Print summary with message
+message("### Tidy Dataset Summary by Borough")
+print(tidy_summary)
+```
+
+### Step 4: Data description and completeness analysis
+
+```{r completeness_analysis}
+# Identify ZIP codes with missing rental data
+all_zip_codes <- zip_codes$'ZIP Code'
+
+zip_codes_with_data <- rental_data$'RegionName'
+
+missing_zip_codes <- setdiff(all_zip_codes, zip_codes_with_data)
+
+# Summary of missing ZIP codes by borough
+missing_summary <- rental_data |>
+  filter(zip_code %in% missing_zip_codes) |>
+  count(borough, name = "missing_zip_count")
+
+# Print summary with message
+message("### Missing ZIP Codes by Borough")
+print(missing_summary)
+
+# Display examples of missing ZIP codes
+missing_examples <- rental_data |>
+  filter(zip_code %in% missing_zip_codes) |>
+  distinct(zip_code, borough) |>
+  head(10)
+
+message("### Examples of ZIP Codes Without Rental Data")
+print(missing_examples)
+```
+
+### Step 5: COVID-19 rental price analysis
+
+```{r covid_analysis}
+# Analyze COVID-19 impact: January 2020 vs January 2021
+covid_analysis <- tidy_rental |>
+  # Filter for January 2020 and 2021
+  filter(month == 1, year %in% c(2020, 2021)) |>
+  # Select relevant columns
+  select(zip_code, borough, neighborhood, year, rental_price) |>
+  # Pivot wider to compare years
+  pivot_wider(
+    names_from = year,
+    names_prefix = "jan_",
+    values_from = rental_price
+  ) |>
+  # Remove rows with missing data in either year
+  filter(!is.na(jan_2020) & !is.na(jan_2021)) |>
+  # Calculate price changes
+  mutate(
+    price_change = jan_2021 - jan_2020,
+    percent_change = (price_change / jan_2020) * 100
+  ) |>
+  # Arrange by largest price drops
+  arrange(price_change)
+
+# Top 10 ZIP codes with largest rental price drops
+top_10_drops <- covid_analysis |>
+  head(10) |>
+  select(
+    zip_code,
+    borough,
+    neighborhood,
+    jan_2020_price = jan_2020,
+    jan_2021_price = jan_2021,
+    price_change,
+    percent_change
+  ) |>
+  mutate(
+    jan_2020_price = round(jan_2020_price, 2),
+    jan_2021_price = round(jan_2021_price, 2),
+    price_change = round(price_change, 2),
+    percent_change = round(percent_change, 2)
+  )
+
+# Print top 10 drops with message
+message("### Top 10 ZIP Codes with Largest Rental Price Drops (Jan 2020 to Jan 2021)")
+print(top_10_drops)
+
+# Additional analysis: Summary of COVID impact by borough
+borough_covid_summary <- covid_analysis |>
+  summarise(
+    avg_price_change = mean(price_change),
+    avg_percent_change = mean(percent_change),
+    median_price_change = median(price_change),
+    zip_codes_analyzed = n(),
+    .by = borough
+  ) |>
+  arrange(avg_price_change) |>
+  mutate(
+    avg_price_change = round(avg_price_change, 2),
+    avg_percent_change = round(avg_percent_change, 2),
+    median_price_change = round(median_price_change, 2)
+  )
+
+# Print borough summary with message
+message("### Borough-Level COVID-19 Impact Summary")
+print(borough_covid_summary)
+
+# Create visualization of price changes
+ggplot(covid_analysis, aes(x = borough, y = percent_change, fill = borough)) +
+  geom_boxplot(alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    title = "Distribution of Rental Price Changes by Borough (Jan 2020 - Jan 2021)",
+    x = "Borough",
+    y = "Percent Change in Rental Price (%)",
+    caption = "Negative values indicate price drops during COVID-19 pandemic"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_brewer(palette = "Set2")
+```
+
+### Data Description and Analysis
+
+**Summary of Results**
+Based on the analysis of NYC rental prices during the COVID-19 pandemic:
+
+**Dataset Composition**: The final tidy dataset contains `r format(nrow(tidy_rental), big.mark = ",")` observations across `r n_distinct(tidy_rental$zip_code)` ZIP codes spanning from `r min(tidy_rental$date)` to `r max(tidy_rental$date)`.
+
+**Missing Data**: `r length(missing_zip_codes)` ZIP codes (`r round(length(missing_zip_codes)/length(all_zip_codes)*100, 1)`%) in the original dataset lack rental price data.
+
+**COVID-19 Impact**: The pandemic caused significant rental price declines across NYC, with Manhattan experiencing the most severe impacts:
+
+Manhattan saw average declines of `r round(filter(borough_covid_summary, borough == "New York County")$avg_percent_change, 1)`%
+
+Brooklyn declined by `r round(filter(borough_covid_summary, borough == "Kings County")$avg_percent_change, 1)`% on average
+
+The most severely affected ZIP code (`r top_10_drops$zip_code[1]` in `r top_10_drops$borough[1]`) dropped by `r round(top_10_drops$percent_change[1], 1)`%
