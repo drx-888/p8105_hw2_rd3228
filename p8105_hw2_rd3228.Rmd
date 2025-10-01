@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(lubridate)
 library(readxl)
+
 ```
 
 ## Problem 1: FiveThirtyEight Data Cleaning and Merging
@@ -18,7 +19,8 @@ library(readxl)
 
 ```{r clean_pols}
 # Read pols-month.csv data
-pols <- read_csv("D:/P8105/hw2/fivethirtyeight_datasets/pols-month.csv")
+setwd("D:/P8105/hw2")
+pols <- read_csv("./fivethirtyeight_datasets/pols-month.csv")
 
 # Clean the data
 pols_clean <- pols |>
@@ -50,7 +52,8 @@ head(pols_clean)
 
 ```{r clean_snp}
 # Read snp.csv data
-snp <- read_csv("D:/P8105/hw2/fivethirtyeight_datasets/snp.csv")
+setwd("D:/P8105/hw2")
+snp <- read_csv("./fivethirtyeight_datasets/snp.csv")
 
 # Clean the data
 snp_clean <- snp |>
@@ -74,7 +77,8 @@ head(snp_clean)
 
 ```{r clean_unemployment}
 # Read unemployment.csv data
-unemployment <- read_csv("D:/P8105/hw2/fivethirtyeight_datasets/unemployment.csv")
+setwd("D:/P8105/hw2")
+unemployment <- read_csv("./fivethirtyeight_datasets/unemployment.csv")
 
 # Clean data - convert from wide to long format
 unemployment_clean <- unemployment |>
@@ -153,7 +157,8 @@ cat("Key variables:", paste(key_variables, collapse = ", "), "\n")
 
 ```{r mr_trash_wheel}
 # Read Mr. Trash Wheel sheet
-mr_trash <- read_excel("D:/P8105/hw2/202409 Trash Wheel Collection Data.xlsx", 
+setwd("D:/P8105/hw2")
+mr_trash <- read_excel("./202409 Trash Wheel Collection Data.xlsx", 
                       sheet = "Mr. Trash Wheel") |>  
   # Clean column names
   janitor::clean_names() |>
@@ -174,7 +179,8 @@ head(mr_trash)
 
 ```{r professor_trash_wheel}
 # Read Professor Trash Wheel sheet
-professor_trash <- read_excel("D:/P8105/hw2/202409 Trash Wheel Collection Data.xlsx", 
+setwd("D:/P8105/hw2")
+professor_trash <- read_excel("./202409 Trash Wheel Collection Data.xlsx", 
                             sheet = "Professor Trash Wheel") |>
   janitor::clean_names() |>
   filter(!is.na(dumpster)) |>
@@ -188,7 +194,8 @@ head(professor_trash)
 
 ```{r gwynnda_trash_wheel}
 # Read Gwynnda Trash Wheel sheet
-gwynnda_trash <- read_excel("D:/P8105/hw2/202409 Trash Wheel Collection Data.xlsx", 
+setwd("D:/P8105/hw2")
+gwynnda_trash <- read_excel("./202409 Trash Wheel Collection Data.xlsx", 
                            sheet = "Gwynnda Trash Wheel") |>
   janitor::clean_names() |>
   filter(!is.na(dumpster)) |>
@@ -252,7 +259,8 @@ Professor Trash Wheel collected a total of `r professor_total_weight` tons of tr
 
 ```{r clean_zip_codes}
 # Read ZIP code data
-zip_codes <- read_csv("D:/P8105/hw2/zillow_data/Zip Codes.csv") |>
+setwd("D:/P8105/hw2")
+zip_codes <- read_csv("./zillow_data/Zip Codes.csv") |>
   # Clean column names
   janitor::clean_names() |>
   # Select relevant columns and rename for clarity
@@ -281,7 +289,8 @@ zip_summary
 
 ```{r clean_rental_data}
 # Read and clean the rental price data
-rental_data <- read_csv("D:/P8105/hw2/zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv") |>
+setwd("D:/P8105/hw2")
+rental_data <- read_csv("./zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv") |>
   # Clean column names
   janitor::clean_names() |>
   # Select and rename relevant columns
@@ -344,9 +353,9 @@ print(tidy_summary)
 
 ```{r completeness_analysis}
 # Identify ZIP codes with missing rental data
-all_zip_codes <- zip_codes$'ZIP Code'
+all_zip_codes <- zip_codes$zip_code
 
-zip_codes_with_data <- rental_data$'RegionName'
+zip_codes_with_data <- rental_data$zip_code
 
 missing_zip_codes <- setdiff(all_zip_codes, zip_codes_with_data)
 
